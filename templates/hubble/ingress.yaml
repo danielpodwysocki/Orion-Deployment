@@ -1,4 +1,5 @@
 {{- if .Values.active}}
+{{- if eq (.Values.orionIngressProvider | default "envoy-gateway") "nginx" }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -40,4 +41,60 @@ spec:
                 name: hubble
                 port:
                   number: 8000
+{{- else }}
+# Envoy Gateway. HTTPRoute (/ -> hubble:3000, /socket.io -> hubble:8000) +
+# SecurityPolicy (1:1 with the nginx auth-url: extAuth to the FIXED
+# /api/socket-auth/ path, gating every route). hubble is in this namespace, so
+# the auth backend is a direct Service ref. nginx-only tuning (proxy timeouts,
+# body-size, cookie session-affinity) is dropped — TLS is terminated at the
+# Gateway; add a BackendTrafficPolicy if session persistence is needed.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hubble
+  namespace: {{ .Values.namespace }}
+spec:
+  parentRefs:
+    - name: {{ .Values._orion_gateway_name | default "juno" }}
+      namespace: {{ .Values._orion_gateway_namespace | default "envoy-gateway-system" }}
+  hostnames:
+    - {{ .Values.host }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /socket.io
+      backendRefs:
+        - name: hubble
+          port: 8000
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: hubble
+          port: 3000
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: hubble-socket-auth
+  namespace: {{ .Values.namespace }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: hubble
+  extAuth:
+    failOpen: false
+    headersToExtAuth:
+      - Cookie
+    http:
+      backendRefs:
+        - name: hubble
+          port: 3000
+      pathOverride: /api/socket-auth/
+      headersToBackend:
+        - Set-Cookie
+{{- end }}
 {{- end}}

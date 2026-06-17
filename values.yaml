@@ -3,6 +3,11 @@ registry: junoinnovations             # Registry to pull the Orion images from
 guid:                                 # GUID of the project
 host:                                 # Hostname of the project
 ingressClassName: nginx
+
+# Ingress provider: "envoy-gateway" (default, HTTPRoute+SecurityPolicy) or "nginx".
+orionIngressProvider: envoy-gateway
+_orion_gateway_name: juno
+_orion_gateway_namespace: envoy-gateway-system
 active: true                          # Whether the project is active
 image_pull_secret:                    # Image pull secret to use for the project. This is the name of the secret in the namespace
 genesis_proxy: true                   # Whether to use the Genesis proxy
