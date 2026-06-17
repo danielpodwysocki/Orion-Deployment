@@ -62,12 +62,7 @@ spec:
             - name: GENESIS_NAMESPACE
               value: "{{ .Values.genesis_namespace }}"
           resources:
-            requests:
-              cpu: 500m
-              memory: 400Mi
-            limits:
-              cpu: 1000m
-              memory: 800Mi
+            {{- toYaml .Values.hubble.resources | nindent 12 }}
           ports:
             - containerPort: 3000
               name: endpoint
