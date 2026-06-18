@@ -1,0 +1,37 @@
+{{- if .Values.active }}
+{{- if .Values.networkPolicy.cilium.enabled }}
+# Project-namespace network policy for default-deny (Cilium) clusters.
+# Pairs with the cluster-wide default-deny that allows only DNS: this re-grants
+# the egress/ingress a Juno project needs. Cilium policy is additive.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: orion-project
+  namespace: {{ .Values.namespace }}
+spec:
+  endpointSelector: {}   # all pods in this project namespace
+  egress:
+    # rhea watches this namespace's cedar-policy configmaps via the kube API
+    - toEntities:
+        - kube-apiserver
+    # intra-namespace: rhea <-> hubble/kuiper, mars/workstation pods
+    - toEndpoints:
+        - {}
+    # cross-namespace to Genesis (auth proxy / GENESIS_NAMESPACE)
+    - toEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: {{ .Values.genesis_namespace }}
+  ingress:
+    # the ingress gateway proxy: routed traffic + the ext_authz subrequest
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: {{ .Values.networkPolicy.cilium.gatewayNamespace }}
+    # intra-namespace
+    - fromEndpoints:
+        - {}
+    # kubelet health probes
+    - fromEntities:
+        - host
+        - remote-node
+{{- end }}
+{{- end }}

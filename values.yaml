@@ -64,11 +64,27 @@ hubble:
 
 rhea:
   image: rhea:v1.2.3                # Image to pull for Rhea
-  env: {}                            # Environment variables to set for the Rhea server
+  env:                               # Environment variables to set for the Rhea server
+    # rhea must watch THIS project namespace's cedar-policy configmaps
+    # (orion-environment-*policy). Without NAMESPACED it attempts a
+    # cluster-scoped watch and never binds its health port -> CrashLoop.
+    NAMESPACED: "true"
   resources:
     requests:
-      cpu: 200m
+      cpu: 100m
       memory: 100Mi
     limits:
       cpu: 350m
       memory: 250Mi
+
+# Project namespace network policy. On a default-deny (Cilium) cluster every
+# project namespace needs explicit egress to the kube API (rhea's config
+# watch), to the Genesis namespace, and ingress from the ingress gateway.
+# Default on for our envoy-gateway clusters; set enabled:false on an open
+# cluster that has no default-deny baseline.
+networkPolicy:
+  cilium:
+    enabled: true
+    # Namespace the ingress gateway proxy runs in (sends routed traffic + the
+    # ext_authz auth subrequest into this project namespace).
+    gatewayNamespace: envoy-gateway-system
