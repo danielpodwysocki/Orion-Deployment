@@ -26,6 +26,11 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: {{ .Values.networkPolicy.cilium.gatewayNamespace }}
+    # the Genesis control plane queries this project's kuiper/hubble workloads
+    # (e.g. the projects page lists each environment's Kuiper workloads)
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: {{ .Values.genesis_namespace }}
     # intra-namespace
     - fromEndpoints:
         - {}
